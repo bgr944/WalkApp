@@ -1,23 +1,8 @@
-import * as React from 'react';
-import { Text, View } from 'react-native';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-
-function HomeScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Home!</Text>
-    </View>
-  );
-}
-
-function SettingsScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Settings!</Text>
-    </View>
-  );
-}
+import HomeScreen from './screens/Home';
+import WalkSetupScreen from './screens/Walk';
 
 const Tab = createBottomTabNavigator();
 
@@ -26,11 +11,8 @@ export default function App() {
     <NavigationContainer>
       <Tab.Navigator>
         <Tab.Screen name="Home" component={HomeScreen} />
-        <Tab.Screen name="Settings" component={SettingsScreen} />
+        <Tab.Screen name="Walk" component={WalkSetupScreen} />
       </Tab.Navigator>
     </NavigationContainer>
   );
 }
-
-/* This tab nav set up copied from:
-https://reactnavigation.org/docs/tab-based-navigation */
