@@ -6,7 +6,7 @@ const HomeScreen = ({ navigation }) => {
     <View>
       <Text>Welcome to the Walking App</Text>
       <Button
-        title="Start Walk"
+        title="Go for a walk"
         onPress={() => navigation.navigate('Walk')}
       />
     </View>
