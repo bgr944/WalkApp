@@ -9,8 +9,9 @@ const WalkSetupScreen = () => {
   const [center, setCenter] = useState(null); // Walk area center point
   const [radius, setRadius] = useState(500); // Default radius in meters
   const [numSpots, setNumSpots] = useState(5); // Default number of spots to visit
-  const [spots, setSpots] = useState([]);
-  const [difficulty, setDifficulty] = useState('Medium'); // Default difficulty
+  const [spots, setSpots] = useState([]); // Generated spots
+  const [difficulty, setDifficulty] = useState('Medium');
+  const [walkActive, setWalkActive] = useState(false);
 
   // Locate user
   useEffect(() => {
@@ -56,7 +57,17 @@ const WalkSetupScreen = () => {
     if (level === 'Easy') setNumSpots(3);
     else if (level === 'Medium') setNumSpots(5);
     else if (level === 'Hard') setNumSpots(10);
-    // later create Extra Hard level user can unlock
+  };
+
+  const startWalk = () => {
+    generateRandomSpots();
+    setWalkActive(true);
+  };
+
+  const finishWalk = () => {
+    setWalkActive(false);
+    setSpots([]);
+    setCenter(null);
   };
 
   return (
@@ -66,7 +77,7 @@ const WalkSetupScreen = () => {
           style={styles.map}
           initialRegion={location}
           showsUserLocation={true}
-          onPress={handleMapPress}
+          onPress={walkActive ? null : handleMapPress} // Disable map press if walk is active
         >
           <Marker
             coordinate={{
@@ -94,42 +105,50 @@ const WalkSetupScreen = () => {
         </MapView>
       ) : null}
 
-      <View style={styles.controlsContainer}>
-        <Slider
-          style={styles.slider}
-          minimumValue={100}
-          maximumValue={2000}
-          step={100}
-          value={radius}
-          onValueChange={(value) => setRadius(value)}
-        />
-        
-        {/* Difficulty Level Selection */}
-        <View style={styles.difficultyContainer}>
-          {['Easy', 'Medium', 'Hard'].map((level) => (
-            <TouchableOpacity
-              key={level}
-              style={[
-                styles.difficultyButton,
-                difficulty === level && styles.selectedButton
-              ]}
-              onPress={() => selectDifficulty(level)}
-            >
-              <Text
-                style={[
-                  styles.difficultyText,
-                  { color: difficulty === level ? 'white' : 'black' }
-                ]}
-              >
-                {level}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <View style={styles.controlsContainer}>
+    <Text style={styles.radiusText}>{radius} m</Text>
+    <Slider
+      style={styles.slider}
+      minimumValue={100}
+      maximumValue={2000}
+      step={100}
+      value={radius}
+      onValueChange={(value) => setRadius(value)}
+      disabled={walkActive} // Disable slider if walk is active
+    />
 
-        <Button title="Generate Spots" onPress={generateRandomSpots} />
-      </View>
+    <View style={styles.difficultyContainer}>
+      {['Easy', 'Medium', 'Hard'].map((level) => (
+        <TouchableOpacity
+          key={level}
+          style={[
+            styles.difficultyButton,
+            difficulty === level && styles.selectedButton,
+          ]}
+          onPress={() => selectDifficulty(level)}
+          disabled={walkActive} // Disable difficulty selection if walk is active
+        >
+          <Text
+            style={[
+              styles.difficultyText,
+              { color: difficulty === level ? 'white' : 'black' },
+            ]}
+          >
+            {level}
+          </Text>
+        </TouchableOpacity>
+      ))}
     </View>
+
+    <View style={styles.buttonContainer}>
+      {!walkActive ? (
+        <Button title="Start Walk" onPress={startWalk} />
+      ) : (
+        <Button title="Finish Walk" onPress={finishWalk} />
+      )}
+    </View>
+  </View>
+  </View>
   );
 };
 
@@ -139,20 +158,31 @@ const styles = StyleSheet.create({
   },
   map: {
     width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height * 0.7, // Adjust the height to leave space for controls
+    flex: 0.7,
   },
   controlsContainer: {
+    flex: 0.3,
     alignItems: 'center',
-    padding: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: 'white',
+    width: '100%',
+  },
+  radiusText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 10,
+    marginBottom: 5,
   },
   slider: {
     width: '80%',
     height: 40,
-    marginVertical: 10,
+    marginVertical: 5,
   },
   difficultyContainer: {
     flexDirection: 'row',
-    marginVertical: 10,
+    justifyContent: 'center',
+    marginVertical: 5,
   },
   difficultyButton: {
     padding: 10,
@@ -168,6 +198,11 @@ const styles = StyleSheet.create({
   difficultyText: {
     fontSize: 16,
   },
+  buttonContainer: {
+    marginTop: 10,
+    width: '60%',
+  },
 });
+
 
 export default WalkSetupScreen;
