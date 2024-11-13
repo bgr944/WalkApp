@@ -4,6 +4,20 @@ import MapView, { Marker, Circle } from 'react-native-maps';
 import * as Location from 'expo-location';
 import Slider from '@react-native-community/slider';
 
+// https://stackoverflow.com/questions/27928/calculate-distance-between-two-latitude-longitude-points-haversine-formula
+
+const haversineDistance = (coords1, coords2) => {
+  const r = 6371; // Earth's radius in km
+  const p = Math.PI / 180;
+
+  const a = 0.5 - Math.cos((coords2.latitude - coords1.latitude) * p) / 2
+              + Math.cos(coords1.latitude * p) * Math.cos(coords2.latitude * p) *
+                (1 - Math.cos((coords2.longitude - coords1.longitude) * p)) / 2;
+
+  return 2 * r * Math.asin(Math.sqrt(a)); // distance in km
+};
+
+
 const WalkSetupScreen = () => {
   const [location, setLocation] = useState(null); // User location
   const [center, setCenter] = useState(null); // Walk area center point
@@ -12,6 +26,8 @@ const WalkSetupScreen = () => {
   const [spots, setSpots] = useState([]); // Generated spots
   const [difficulty, setDifficulty] = useState('Medium');
   const [walkActive, setWalkActive] = useState(false);
+  const [points, setPoints] = useState(0);
+  const [spotsVisited, setSpotsVisited] = useState([]);
 
   // Locate user
   useEffect(() => {
@@ -62,6 +78,8 @@ const WalkSetupScreen = () => {
   const startWalk = () => {
     generateRandomSpots();
     setWalkActive(true);
+    setPoints(0);
+    setVisitedSpots([]);
   };
 
   const finishWalk = () => {
