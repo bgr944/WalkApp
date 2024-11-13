@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Button } from 'react-native';
+import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Button, ActivityIndicator } from 'react-native';
 import MapView, { Marker, Circle } from 'react-native-maps';
 import * as Location from 'expo-location';
 import Slider from '@react-native-community/slider';
@@ -16,25 +16,65 @@ const WalkSetupScreen = () => {
   const [walkActive, setWalkActive] = useState(false);
   const [points, setPoints] = useState(0);
   const [spotsVisited, setSpotsVisited] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   // Locate user
   useEffect(() => {
     (async () => {
+      setLoading(true);
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        console.log('No permission to get location');
+        alert('Location permission is required for the app to work. Please enable it in settings.');
+        setLoading(false);
         return;
       }
 
-      let { coords } = await Location.getCurrentPositionAsync({});
-      setLocation({
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      });
+      try {
+        let { coords } = await Location.getCurrentPositionAsync({});
+        setLocation({
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+      } catch (error) {
+        console.log('Location Error:', error);
+        alert('Failed to get location. Please check your GPS or try again later.');
+      }
+      setLoading(false);
     })();
   }, []);
+
+  // Check if user is close enough to any spot
+  const checkNearbySpots = (userLocation) => {
+    spots.forEach((spot, index) => {
+      if (!visitedSpots.includes(index)) {
+        const distance = haversineDistance(userLocation, spot);
+        if (distance < 0.02) { // 20 meters
+          setPoints((prev) => prev + 1);
+          setVisitedSpots((prev) => [...prev, index]);
+        }
+      }
+    });
+  };
+
+  // https://theexpertdeveloper.medium.com/how-to-implement-live-location-tracking-in-react-native-725dca135e43
+  // Location watch to update users location and check for spots nearby
+  useEffect(() => {
+    let locationSubscription;
+    if (walkActive) {
+      locationSubscription = Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.High, distanceInterval: 1 },
+        (loc) => {
+          setLocation(loc.coords);
+          checkNearbySpots(loc.coords);
+        }
+      );
+    }
+    return () => {
+      if (locationSubscription) locationSubscription.remove();
+    };
+  }, [walkActive, spots]); // Runs when walk starts or ends and when spots are updated
 
   // Set center point
   const handleMapPress = (event) => {
@@ -44,6 +84,7 @@ const WalkSetupScreen = () => {
 
   // Generate random spots within the radius
   const generateRandomSpots = () => {
+    setLoading(true);
     const generatedSpots = [];
     for (let i = 0; i < numSpots; i++) {
       const angle = Math.random() * 2 * Math.PI;
@@ -53,6 +94,7 @@ const WalkSetupScreen = () => {
       generatedSpots.push({ latitude: newLatitude, longitude: newLongitude });
     }
     setSpots(generatedSpots);
+    setLoading(false);
   };
 
   // Set number of spots based on difficulty level
@@ -67,96 +109,108 @@ const WalkSetupScreen = () => {
     generateRandomSpots();
     setWalkActive(true);
     setPoints(0);
-    setVisitedSpots([]);
+    setSpotsVisited([]);
+    alert('Walk Started! Have a pleasant journey!');
   };
 
   const finishWalk = () => {
     setWalkActive(false);
     setSpots([]);
     setCenter(null);
+    setPoints(0);
+    setVisitedSpots([]);
+    alert('Walk Finished! You earned ' + points + ' points!');
   };
+  
 
   return (
     <View style={styles.container}>
-      {location ? (
-        <MapView
-          style={styles.map}
-          initialRegion={location}
-          showsUserLocation={true}
-          onPress={walkActive ? null : handleMapPress} // Disable map press if walk is active
-        >
-          <Marker
-            coordinate={{
-              latitude: location.latitude,
-              longitude: location.longitude,
-            }}
-            title="You are here"
-            description="Your current location"
-          />
-          {center && (
-            <Circle
-              center={center}
-              radius={radius}
-              strokeColor="rgba(0, 150, 255, 0.5)"
-              fillColor="rgba(0, 150, 255, 0.2)"
-            />
-          )}
-          {spots.map((spot, index) => (
-            <Marker
-              key={index}
-              coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
-              title={`Spot ${index + 1}`}
-            />
-          ))}
-        </MapView>
-      ) : null}
-
-        <View style={styles.controlsContainer}>
-    <Text style={styles.radiusText}>{radius} m</Text>
-    <Slider
-      style={styles.slider}
-      minimumValue={100}
-      maximumValue={2000}
-      step={100}
-      value={radius}
-      onValueChange={(value) => setRadius(value)}
-      disabled={walkActive} // Disable slider if walk is active
-    />
-
-    <View style={styles.difficultyContainer}>
-      {['Easy', 'Medium', 'Hard'].map((level) => (
-        <TouchableOpacity
-          key={level}
-          style={[
-            styles.difficultyButton,
-            difficulty === level && styles.selectedButton,
-          ]}
-          onPress={() => selectDifficulty(level)}
-          disabled={walkActive} // Disable difficulty selection if walk is active
-        >
-          <Text
-            style={[
-              styles.difficultyText,
-              { color: difficulty === level ? 'white' : 'black' },
-            ]}
-          >
-            {level}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-
-    <View style={styles.buttonContainer}>
-      {!walkActive ? (
-        <Button title="Start Walk" onPress={startWalk} />
+      {loading ? (
+        <ActivityIndicator size="large" color="#0000ff" />
       ) : (
-        <Button title="Finish Walk" onPress={finishWalk} />
+        <>
+          {location ? (
+            <MapView
+              style={styles.map}
+              initialRegion={location}
+              showsUserLocation={true}
+              onPress={walkActive ? null : handleMapPress} // Disable map press if walk is active
+            >
+              <Marker
+                coordinate={{
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                }}
+                title="You are here"
+                description="Your current location"
+              />
+              {center && (
+                <Circle
+                  center={center}
+                  radius={radius}
+                  strokeColor="rgba(0, 150, 255, 0.5)"
+                  fillColor="rgba(0, 150, 255, 0.2)"
+                />
+              )}
+              {spots.map((spot, index) => (
+                <Marker
+                  key={index}
+                  coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
+                  title={`Spot ${index + 1}`}
+                />
+              ))}
+            </MapView>
+          ) : null}
+  
+          <View style={styles.controlsContainer}>
+            <Text style={styles.radiusText}>{radius} m</Text>
+            <Text>Your Points: {points}</Text>
+            <Slider
+              style={styles.slider}
+              minimumValue={100}
+              maximumValue={2000}
+              step={100}
+              value={radius}
+              onValueChange={(value) => setRadius(value)}
+              disabled={walkActive} // Disable slider if walk is active
+            />
+  
+            <View style={styles.difficultyContainer}>
+              {['Easy', 'Medium', 'Hard'].map((level) => (
+                <TouchableOpacity
+                  key={level}
+                  style={[
+                    styles.difficultyButton,
+                    difficulty === level && styles.selectedButton,
+                  ]}
+                  onPress={() => selectDifficulty(level)}
+                  disabled={walkActive} // Disable difficulty selection if walk is active
+                >
+                  <Text
+                    style={[
+                      styles.difficultyText,
+                      { color: difficulty === level ? 'white' : 'black' },
+                    ]}
+                  >
+                    {level}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+  
+            <View style={styles.buttonContainer}>
+              {!walkActive ? (
+                <Button title="Start Walk" onPress={startWalk} />
+              ) : (
+                <Button title="Finish Walk" onPress={finishWalk} />
+              )}
+            </View>
+          </View>
+        </>
       )}
     </View>
-  </View>
-  </View>
   );
-};
+};  
 
 const styles = StyleSheet.create({
   container: {
