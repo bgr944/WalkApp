@@ -15,7 +15,6 @@ const WalkSetupScreen = () => {
   const [difficulty, setDifficulty] = useState('Medium');
   const [walkActive, setWalkActive] = useState(false);
   const [points, setPoints] = useState(0);
-  const [spotsVisited, setSpotsVisited] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Locate user
@@ -47,16 +46,18 @@ const WalkSetupScreen = () => {
 
   // Check if user is close enough to any spot
   const checkNearbySpots = (userLocation) => {
-    spots.forEach((spot, index) => {
-      if (!spotsVisited.includes(index)) {
+    setSpots((prevSpots) =>
+      prevSpots.map((spot) => {
         const distance = haversineDistance(userLocation, spot);
-        if (distance < 0.02) { // 20 meters
+        if (!spot.visited && distance < 0.05) { // Within 20 meters
           setPoints((prev) => prev + 1);
-          setSpotsVisited((prev) => [...prev, index]);
+          return { ...spot, visited: true }; // Mark this spot as visited
         }
-      }
-    });
+        return spot; // Leave unchanged if already visited or too far
+      })
+    );
   };
+
 
   // https://theexpertdeveloper.medium.com/how-to-implement-live-location-tracking-in-react-native-725dca135e43
   // Location watch to update users location and check for spots nearby
@@ -100,10 +101,10 @@ const WalkSetupScreen = () => {
     const generatedSpots = [];
     for (let i = 0; i < numSpots; i++) {
       const angle = Math.random() * 2 * Math.PI;
-      const distance = Math.random() * radius / 1000;
-      const newLatitude = center.latitude + (distance * Math.cos(angle)) / 111.32;
-      const newLongitude = center.longitude + (distance * Math.sin(angle)) / (111.32 * Math.cos(center.latitude * Math.PI / 180));
-      const newSpot = { latitude: newLatitude, longitude: newLongitude };
+      const spotDistance = Math.random() * radius / 1000;
+      const newLatitude = center.latitude + (spotDistance * Math.cos(angle)) / 111.32;
+      const newLongitude = center.longitude + (spotDistance * Math.sin(angle)) / (111.32 * Math.cos(center.latitude * Math.PI / 180));
+      const newSpot = { latitude: newLatitude, longitude: newLongitude, visited: false };
       console.log(`Generated spot ${i + 1}:`, newSpot);
       generatedSpots.push(newSpot);
     }
@@ -137,7 +138,6 @@ const WalkSetupScreen = () => {
     generateRandomSpots();
     setWalkActive(true);
     setPoints(0);
-    setSpotsVisited([]);
     alert('Walk Started! Have a pleasant journey!');
   };
 
@@ -146,7 +146,6 @@ const WalkSetupScreen = () => {
     setSpots([]);
     setCenter(null);
     setPoints(0);
-    setSpotsVisited([]);
     alert('Walk Finished! You earned ' + points + ' points!');
   };
   
@@ -164,14 +163,6 @@ const WalkSetupScreen = () => {
               showsUserLocation={true}
               onPress={walkActive ? null : handleMapPress} // Disable map press if walk is active
             >
-              <Marker
-                coordinate={{
-                  latitude: location.latitude,
-                  longitude: location.longitude,
-                }}
-                title="You are here"
-                description="Your current location"
-              />
               {center && (
                 <Circle
                   center={center}
@@ -185,6 +176,7 @@ const WalkSetupScreen = () => {
                   key={index}
                   coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
                   title={`Spot ${index + 1}`}
+                  pinColor={spot.visited ? 'green' : 'red'} // Green for visited spots
                 />
               ))}
             </MapView>
