@@ -48,11 +48,11 @@ const WalkSetupScreen = () => {
   // Check if user is close enough to any spot
   const checkNearbySpots = (userLocation) => {
     spots.forEach((spot, index) => {
-      if (!visitedSpots.includes(index)) {
+      if (!spotsVisited.includes(index)) {
         const distance = haversineDistance(userLocation, spot);
         if (distance < 0.02) { // 20 meters
           setPoints((prev) => prev + 1);
-          setVisitedSpots((prev) => [...prev, index]);
+          setSpotsVisited((prev) => [...prev, index]);
         }
       }
     });
@@ -62,17 +62,29 @@ const WalkSetupScreen = () => {
   // Location watch to update users location and check for spots nearby
   useEffect(() => {
     let locationSubscription;
+  
+    const startWatchingLocation = async () => {
+      try {
+        locationSubscription = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.High, distanceInterval: 1 },
+          (loc) => {
+            setLocation(loc.coords);
+            checkNearbySpots(loc.coords);
+          }
+        );
+      } catch (error) {
+        console.error("Error starting location watch:", error);
+      }
+    };
+  
     if (walkActive) {
-      locationSubscription = Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.High, distanceInterval: 1 },
-        (loc) => {
-          setLocation(loc.coords);
-          checkNearbySpots(loc.coords);
-        }
-      );
+      startWatchingLocation();
     }
+  
     return () => {
-      if (locationSubscription) locationSubscription.remove();
+      if (locationSubscription) {
+        locationSubscription.remove();
+      }
     };
   }, [walkActive, spots]); // Runs when walk starts or ends and when spots are updated
 
@@ -91,11 +103,15 @@ const WalkSetupScreen = () => {
       const distance = Math.random() * radius / 1000;
       const newLatitude = center.latitude + (distance * Math.cos(angle)) / 111.32;
       const newLongitude = center.longitude + (distance * Math.sin(angle)) / (111.32 * Math.cos(center.latitude * Math.PI / 180));
-      generatedSpots.push({ latitude: newLatitude, longitude: newLongitude });
+      const newSpot = { latitude: newLatitude, longitude: newLongitude };
+      console.log(`Generated spot ${i + 1}:`, newSpot);
+      generatedSpots.push(newSpot);
     }
+    console.log('Generated spots:', generatedSpots);
     setSpots(generatedSpots);
     setLoading(false);
   };
+
 
   // Set number of spots based on difficulty level
   const selectDifficulty = (level) => {
@@ -106,6 +122,18 @@ const WalkSetupScreen = () => {
   };
 
   const startWalk = () => {
+    if (!location) {
+      console.log('Location is null, cannot start walk.');
+      alert('Please wait until your location is determined.');
+      return;
+    }
+  
+    if (!center) {
+      console.log('Center is null, cannot start walk.');
+      alert('Please select a center point for your walk on the map.');
+      return;
+    }
+  
     generateRandomSpots();
     setWalkActive(true);
     setPoints(0);
@@ -118,7 +146,7 @@ const WalkSetupScreen = () => {
     setSpots([]);
     setCenter(null);
     setPoints(0);
-    setVisitedSpots([]);
+    setSpotsVisited([]);
     alert('Walk Finished! You earned ' + points + ' points!');
   };
   
