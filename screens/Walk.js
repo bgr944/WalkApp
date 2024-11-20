@@ -16,6 +16,8 @@ const WalkSetupScreen = () => {
   const [walkActive, setWalkActive] = useState(false);
   const [points, setPoints] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [startTime, setStartTime] = useState(null);
+  const [timeSpent, setTimeSpent] = useState(0);
 
   // Locate user
   useEffect(() => {
@@ -136,17 +138,21 @@ const WalkSetupScreen = () => {
     }
   
     generateRandomSpots();
+    setStartTime(Date.now());
     setWalkActive(true);
     setPoints(0);
     alert('Walk Started! Have a pleasant journey!');
   };
 
   const finishWalk = () => {
+    const endTime = Date.now();
+    const totalTime = Math.floor((endTime - startTime) / 60000); // to minutes
+    setTimeSpent(totalTime);
     setWalkActive(false);
     setSpots([]);
     setCenter(null);
     setPoints(0);
-    alert('Walk Finished! You earned ' + points + ' points!');
+    alert(`Walk Finished! You earned ${points} points and walked for ${totalTime} minutes!`);
   };
   
 
@@ -176,7 +182,7 @@ const WalkSetupScreen = () => {
                   key={index}
                   coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
                   title={`Spot ${index + 1}`}
-                  pinColor={spot.visited ? 'green' : 'red'} // Green for visited spots
+                  pinColor={spot.visited ? 'green' : 'red'} // Green for visited spots (not working)
                 />
               ))}
             </MapView>
