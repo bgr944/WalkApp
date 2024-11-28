@@ -4,6 +4,7 @@ import MapView, { Marker, Circle } from 'react-native-maps';
 import * as Location from 'expo-location';
 import Slider from '@react-native-community/slider';
 import { haversineDistance } from '../utils/distanceUtils';
+import { saveWalk } from '../database/database';
 
 
 const WalkSetupScreen = () => {
@@ -18,6 +19,8 @@ const WalkSetupScreen = () => {
   const [loading, setLoading] = useState(false);
   const [startTime, setStartTime] = useState(null);
   const [timeSpent, setTimeSpent] = useState(0);
+
+
 
   // Locate user
   useEffect(() => {
@@ -147,6 +150,9 @@ const WalkSetupScreen = () => {
   const finishWalk = () => {
     const endTime = Date.now();
     const totalTime = Math.floor((endTime - startTime) / 60000); // to minutes
+  
+    // Save walk details to AsyncStorage
+    handleFinishWalk(totalTime, points, difficulty);
     setTimeSpent(totalTime);
     setWalkActive(false);
     setSpots([]);
@@ -154,7 +160,20 @@ const WalkSetupScreen = () => {
     setPoints(0);
     alert(`Walk Finished! You earned ${points} points and walked for ${totalTime} minutes!`);
   };
+
   
+  const handleFinishWalk = (duration, points, difficulty) => {
+    const date = new Date().toISOString();
+  
+    saveWalk(duration, points, date, difficulty)
+      .then(() => {
+        console.log('Walk data saved successfully!');
+      })
+      .catch((error) => {
+        console.error('Error saving walk data:', error);
+      });
+  };
+
 
   return (
     <View style={styles.container}>
