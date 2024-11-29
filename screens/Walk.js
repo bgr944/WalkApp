@@ -5,6 +5,7 @@ import * as Location from 'expo-location';
 import Slider from '@react-native-community/slider';
 import { haversineDistance } from '../utils/distanceUtils';
 import { saveWalk } from '../database/database';
+import { useNavigation } from '@react-navigation/native';
 
 
 const WalkSetupScreen = () => {
@@ -20,7 +21,7 @@ const WalkSetupScreen = () => {
   const [startTime, setStartTime] = useState(null);
   const [timeSpent, setTimeSpent] = useState(0);
 
-
+  const navigation = useNavigation();
 
   // Locate user
   useEffect(() => {
@@ -159,6 +160,8 @@ const WalkSetupScreen = () => {
     setCenter(null);
     setPoints(0);
     alert(`Walk Finished! You earned ${points} points and walked for ${totalTime} minutes!`);
+    // History screen refresh by setting params
+    navigation.setParams({ refresh: true });
   };
 
   

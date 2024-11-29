@@ -14,6 +14,7 @@ export const initializeData = async () => {
 
 export const saveWalk = async (duration, points, date, difficulty) => {
   try {
+    // If no data exists, defaults to an empty array to prevent errors
     const walks = JSON.parse(await AsyncStorage.getItem('walks')) || [];
     const newWalk = { duration, points, date, difficulty };
     walks.push(newWalk);
@@ -32,5 +33,16 @@ export const getWalks = async () => {
   } catch (error) {
     console.error('Error fetching walks:', error);
     return [];
+  }
+};
+
+export const removeWalk = async (indexToRemove) => {
+  try {
+    const walks = JSON.parse(await AsyncStorage.getItem('walks')) || [];
+    const updatedWalks = walks.filter((_, index) => index !== indexToRemove);
+    await AsyncStorage.setItem('walks', JSON.stringify(updatedWalks));
+    console.log('Walk removed:', indexToRemove);
+  } catch (error) {
+    console.error('Error removing walk:', error);
   }
 };
