@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Button, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Button, ActivityIndicator, Alert } from 'react-native';
 import MapView, { Marker, Circle } from 'react-native-maps';
 import * as Location from 'expo-location';
 import Slider from '@react-native-community/slider';
 import { haversineDistance } from '../utils/distanceUtils';
 import { saveWalk } from '../database/database';
 import { useNavigation } from '@react-navigation/native';
+import { createRandomSpot } from '../utils/createRandomSpot';
 
 
 const WalkSetupScreen = () => {
@@ -55,7 +56,7 @@ const WalkSetupScreen = () => {
     setSpots((prevSpots) =>
       prevSpots.map((spot) => {
         const distance = haversineDistance(userLocation, spot);
-        if (!spot.visited && distance < 0.05) { // Within 20 meters
+        if (!spot.visited && distance < 0.05) { // Within 5 meters
           setPoints((prev) => prev + 1);
           return { ...spot, visited: true }; // Mark this spot as visited
         }
@@ -106,15 +107,8 @@ const WalkSetupScreen = () => {
     setLoading(true);
     const generatedSpots = [];
     for (let i = 0; i < numSpots; i++) {
-      const angle = Math.random() * 2 * Math.PI;
-      const spotDistance = Math.random() * radius / 1000;
-      const newLatitude = center.latitude + (spotDistance * Math.cos(angle)) / 111.32;
-      const newLongitude = center.longitude + (spotDistance * Math.sin(angle)) / (111.32 * Math.cos(center.latitude * Math.PI / 180));
-      const newSpot = { latitude: newLatitude, longitude: newLongitude, visited: false };
-      console.log(`Generated spot ${i + 1}:`, newSpot);
-      generatedSpots.push(newSpot);
+      generatedSpots.push(createRandomSpot(center, radius));
     }
-    console.log('Generated spots:', generatedSpots);
     setSpots(generatedSpots);
     setLoading(false);
   };
@@ -177,6 +171,14 @@ const WalkSetupScreen = () => {
       });
   };
 
+  const handleReplaceSpot = (spotIndex) => {
+    const newSpot = createRandomSpot(center, radius);
+    setSpots((prevSpots) =>
+      prevSpots.map((spot, index) =>
+        index === spotIndex ? newSpot : spot
+      )
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -204,7 +206,21 @@ const WalkSetupScreen = () => {
                   key={index}
                   coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
                   title={`Spot ${index + 1}`}
-                  pinColor={spot.visited ? 'green' : 'red'} // Green for visited spots (not working)
+                  // pinColor={spot.visited ? 'green' : 'red'} // Green for visited spots (not working)
+                  onPress={() => {
+                    Alert.alert(
+                      "Replace Spot",
+                      `Do you want to replace Spot ${index + 1}?`,
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        { 
+                          text: "Yes", 
+                          onPress: () => handleReplaceSpot(index)
+                        },
+                      ],
+                      { cancelable: true }
+                    );
+                  }}
                 />
               ))}
             </MapView>
