@@ -9,7 +9,6 @@ import { useNavigation } from '@react-navigation/native';
 import { createRandomSpot } from '../utils/createRandomSpot';
 import * as Haptics from 'expo-haptics';
 
-
 const WalkSetupScreen = () => {
   const [location, setLocation] = useState(null); // User location
   const [center, setCenter] = useState(null); // Walk area center point
@@ -67,8 +66,13 @@ const WalkSetupScreen = () => {
     );
   };
 
+  // End walk if all spots are visited
+  const checkWalkCompletion = () => {
+    if (spots.every(spot => spot.visited)) {
+      finishWalk(); // End the walk automatically if all spots are visited
+    }
+  };
 
-  // https://theexpertdeveloper.medium.com/how-to-implement-live-location-tracking-in-react-native-725dca135e43
   // Location watch to update users location and check for spots nearby
   useEffect(() => {
     let locationSubscription;
@@ -80,6 +84,7 @@ const WalkSetupScreen = () => {
           (loc) => {
             setLocation(loc.coords);
             checkNearbySpots(loc.coords);
+            checkWalkCompletion(); // Check if the walk is completed
           }
         );
       } catch (error) {
@@ -108,13 +113,13 @@ const WalkSetupScreen = () => {
   const generateRandomSpots = () => {
     setLoading(true);
     const generatedSpots = [];
+    let spotId = Date.now();  // Start id from current timestamp to ensure uniqueness
     for (let i = 0; i < numSpots; i++) {
-      generatedSpots.push(createRandomSpot(center, radius));
+      generatedSpots.push(createRandomSpot(center, radius, spotId + i)); // Pass unique id
     }
     setSpots(generatedSpots);
     setLoading(false);
   };
-
 
   // Set number of spots based on difficulty level
   const selectDifficulty = (level) => {
@@ -152,7 +157,7 @@ const WalkSetupScreen = () => {
     handleFinishWalk(totalTime, points, difficulty);
     setTimeSpent(totalTime);
     setWalkActive(false);
-    setSpots([]);
+    setSpots([]); // Clear spots
     setCenter(null);
     setPoints(0);
     alert(`Walk Finished! You earned ${points} points and walked for ${totalTime} minutes!`);
@@ -160,7 +165,6 @@ const WalkSetupScreen = () => {
     navigation.setParams({ refresh: true });
   };
 
-  
   const handleFinishWalk = (duration, points, difficulty) => {
     const date = new Date().toISOString();
   
@@ -173,14 +177,15 @@ const WalkSetupScreen = () => {
       });
   };
 
-  const handleReplaceSpot = (spotIndex) => {
-    const newSpot = createRandomSpot(center, radius);
+  const handleReplaceSpot = (spotId) => {
+    const newSpot = createRandomSpot(center, radius, Date.now()); // Generate new spot with a unique id
     setSpots((prevSpots) =>
-      prevSpots.map((spot, index) =>
-        index === spotIndex ? newSpot : spot
+      prevSpots.map((spot) =>
+        spot.id === spotId ? newSpot : spot // Use id to find and replace the correct spot
       )
     );
   };
+  
 
   return (
     <View style={styles.container}>
@@ -203,28 +208,27 @@ const WalkSetupScreen = () => {
                   fillColor="rgba(0, 150, 255, 0.2)"
                 />
               )}
-              {spots.map((spot, index) => (
-                <Marker
-                  key={index}
-                  coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
-                  title={`Spot ${index + 1}`}
-                  // pinColor={spot.visited ? 'green' : 'red'} // Green for visited spots (not working)
-                  onPress={() => {
-                    Alert.alert(
-                      "Replace Spot",
-                      `Do you want to replace Spot ${index + 1}?`,
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        { 
-                          text: "Yes", 
-                          onPress: () => handleReplaceSpot(index)
-                        },
-                      ],
-                      { cancelable: true }
-                    );
-                  }}
-                />
-              ))}
+             {spots.filter(spot => !spot.visited).map((spot) => (
+              <Marker
+                key={spot.id} // Use id as the key for each marker
+                coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
+                title={`Spot ${spot.id}`} // Title now reflects the spot's id
+                onPress={() => {
+                  Alert.alert(
+                    "Replace Spot",
+                    `Do you want to replace Spot ${spot.id}?`, // Show id in the alert
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      { 
+                        text: "Yes", 
+                        onPress: () => handleReplaceSpot(spot.id) // Use id when replacing
+                      },
+                    ],
+                    { cancelable: true }
+                  );
+                }}
+              />
+            ))}
             </MapView>
           ) : null}
   
@@ -245,90 +249,74 @@ const WalkSetupScreen = () => {
               {['Easy', 'Medium', 'Hard'].map((level) => (
                 <TouchableOpacity
                   key={level}
-                  style={[
-                    styles.difficultyButton,
-                    difficulty === level && styles.selectedButton,
+                  style={[ 
+                    styles.difficultyButton, 
+                    difficulty === level && styles.selectedButton
                   ]}
                   onPress={() => selectDifficulty(level)}
-                  disabled={walkActive} // Disable difficulty selection if walk is active
                 >
-                  <Text
-                    style={[
-                      styles.difficultyText,
-                      { color: difficulty === level ? 'white' : 'black' },
-                    ]}
-                  >
-                    {level}
-                  </Text>
+                  <Text style={styles.buttonText}>{level}</Text>
                 </TouchableOpacity>
               ))}
             </View>
   
-            <View style={styles.buttonContainer}>
-              {!walkActive ? (
-                <Button title="Start Walk" onPress={startWalk} />
-              ) : (
-                <Button title="Finish Walk" onPress={finishWalk} />
-              )}
-            </View>
+            {!walkActive ? (
+              <Button title="Start Walk" onPress={startWalk} />
+            ) : (
+              <Button title="Finish Walk" onPress={finishWalk} />
+            )}
           </View>
         </>
       )}
     </View>
   );
-};  
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   map: {
     width: Dimensions.get('window').width,
-    flex: 0.7,
+    height: Dimensions.get('window').height - 100,
   },
   controlsContainer: {
-    flex: 0.3,
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    position: 'absolute',
+    bottom: 20,
+    left: 10,
+    right: 10,
     backgroundColor: 'white',
-    width: '100%',
+    padding: 10,
+    borderRadius: 10,
+    alignItems: 'center',
   },
   radiusText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginTop: 10,
-    marginBottom: 5,
+    marginBottom: 10,
   },
   slider: {
-    width: '80%',
-    height: 40,
-    marginVertical: 5,
+    width: 200,
+    marginBottom: 20,
   },
   difficultyContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    marginVertical: 5,
+    marginBottom: 20,
   },
   difficultyButton: {
+    margin: 5,
     padding: 10,
-    marginHorizontal: 5,
+    backgroundColor: '#DDD',
     borderRadius: 5,
-    borderColor: 'gray',
-    borderWidth: 1,
   },
   selectedButton: {
-    backgroundColor: '#0096FF',
-    borderColor: '#007ACC',
+    backgroundColor: 'orange',
   },
-  difficultyText: {
-    fontSize: 16,
-  },
-  buttonContainer: {
-    marginTop: 10,
-    width: '60%',
+  buttonText: {
+    color: '#fff',
   },
 });
-
 
 export default WalkSetupScreen;

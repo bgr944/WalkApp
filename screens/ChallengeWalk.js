@@ -8,7 +8,6 @@ import { haversineDistance } from '../utils/distanceUtils';
 import { saveWalk } from '../database/database';
 import * as Haptics from 'expo-haptics';
 
-
 const ChallengeWalkScreen = () => {
   const [location, setLocation] = useState(null);
   const [center, setCenter] = useState(null); // Center point for walk
@@ -69,15 +68,18 @@ const ChallengeWalkScreen = () => {
   };
 
   const generateSpots = (numSpots) => {
-    return Array.from({ length: numSpots }, () => createRandomSpot(center, radius));
+    return Array.from({ length: numSpots }, () => ({
+      ...createRandomSpot(center, radius),
+      id: `${Math.random()}`, // Add unique ID to each spot
+    }));
   };
-  
+
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds < 10 ? `0${remainingSeconds}` : remainingSeconds}`;
   };
-   
+
   const stopTimer = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -113,32 +115,31 @@ const ChallengeWalkScreen = () => {
   };
 
   const handleReplaceSpot = (spotIndex) => {
-    const newSpot = createRandomSpot(center, radius);
+    const newSpot = { ...createRandomSpot(center, radius), id: `${Math.random()}` };
   
     // Deduct a point for skipping
     setPoints((prevPoints) => prevPoints - 1);
   
     // Replace the skipped spot with a new one
     setSpots((prevSpots) =>
-      prevSpots.map((spot, index) =>
-        index === spotIndex ? { ...newSpot, visited: false } : spot
-      )
-    );
+        prevSpots.map((spot) =>
+          spot.id === spotIndex ? { ...newSpot, visited: false } : spot
+        )
+      );
   };
-  
 
   const checkNearbySpots = (userLocation) => {
     setSpots((prevSpots) =>
       prevSpots.map((spot) => {
         const distance = haversineDistance(userLocation, spot);
   
-          if (!spot.visited && distance < 0.01) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // Haptic feedback
-              // Award a point for visiting
-              setPoints((prevPoints) => prevPoints + 1);
+        if (!spot.visited && distance < 0.01) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // Haptic feedback
+          // Award a point for visiting
+          setPoints((prevPoints) => prevPoints + 1);
   
           // Replace the visited spot with a new one
-          const newSpot = createRandomSpot(center, radius);
+          const newSpot = { ...createRandomSpot(center, radius), id: `${Math.random()}` };
           return { ...newSpot, visited: true }; // Mark as visited
         }
   
@@ -184,20 +185,20 @@ const ChallengeWalkScreen = () => {
                   fillColor="rgba(0, 150, 255, 0.2)"
                 />
               )}
-              {spots.map((spot, index) => (
+              {spots.map((spot) => (
                 <Marker
-                  key={index}
+                  key={spot.id} // Use unique ID for the key
                   coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
-                  title={`Spot ${index + 1}`}
+                  title={`Spot ${spot.id}`}
                   onPress={() => {
                     Alert.alert(
                       "Replace Spot",
-                      `Do you want to replace Spot ${index + 1}?`,
+                      `Do you want to replace Spot ${spot.id}?`,
                       [
                         { text: "Cancel", style: "cancel" },
                         { 
                           text: "Yes", 
-                          onPress: () => handleReplaceSpot(index) 
+                          onPress: () => handleReplaceSpot(spot.id) 
                         },
                       ],
                       { cancelable: true }
@@ -211,14 +212,14 @@ const ChallengeWalkScreen = () => {
             <Text style={styles.radiusText}>{radius}m</Text>
             <Text>Your Points: {points}</Text>
             <Slider
-                style={styles.slider}
-                minimumValue={100}
-                maximumValue={2000}
-                step={100}
-                value={radius}
-                onValueChange={(value) => setRadius(value)}
-                disabled={challengeActive} // Disabled when challenge is active
-                />
+              style={styles.slider}
+              minimumValue={100}
+              maximumValue={2000}
+              step={100}
+              value={radius}
+              onValueChange={(value) => setRadius(value)}
+              disabled={challengeActive} // Disabled when challenge is active
+            />
             <Text style={styles.timerText}>Time Left: {formatTime(timeLeft)}</Text>
             {!challengeActive ? (
               <View style={styles.buttonContainer}>
@@ -241,47 +242,54 @@ const ChallengeWalkScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  map: {
-    width: Dimensions.get('window').width,
-    flex: 0.7,
-  },
-  controls: {
-    flex: 0.3,
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: 'white',
-    width: '100%',
-  },
-  radiusText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 10,
-    marginBottom: 5,
-  },
-  slider: {
-    width: '80%',
-    height: 40,
-    marginVertical: 5,
-  },
-  timerText: {
-    fontSize: 16,
-    marginTop: 5,
-  },
-  buttonContainer: {
-    marginTop: 10,
-    width: '60%',
-  },
-  button: {
-    padding: 10,
-    backgroundColor: '#0096FF',
-    borderRadius: 5,
-    borderColor: '#007ACC',
-    borderWidth: 1,
-  },
-});
+    container: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    map: {
+      width: Dimensions.get('window').width,
+      height: Dimensions.get('window').height - 100, // Adjust the height based on your layout
+    },
+    controls: {
+      position: 'absolute',
+      bottom: 20,
+      left: 10,
+      right: 10,
+      backgroundColor: 'white',
+      padding: 10,
+      borderRadius: 10,
+      alignItems: 'center',
+    },
+    radiusText: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      marginBottom: 10,
+    },
+    slider: {
+      width: 200,
+      marginBottom: 20,
+    },
+    timerText: {
+      fontSize: 16,
+      marginTop: 5,
+      marginBottom: 10,
+    },
+    buttonContainer: {
+      marginTop: 10,
+      width: '60%',
+    },
+    button: {
+      padding: 10,
+      backgroundColor: '#4CAF50',
+      borderRadius: 5,
+      borderColor: '#007ACC',
+      borderWidth: 1,
+    },
+    buttonText: {
+      color: '#fff',
+    },
+  });
+  
 
 export default ChallengeWalkScreen;
