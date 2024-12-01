@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import WalkSetupScreen from './screens/Walk';
+import ChallengeWalkScreen from './screens/ChallengeWalk';
 import History from './screens/History';
 import { initializeData } from './database/database';
 
@@ -16,9 +17,14 @@ export default function App() {
     <NavigationContainer>
       <Tab.Navigator>
       <Tab.Screen
-        name="Walk"
+        name="Free Walk"
         component={WalkSetupScreen}
         options={{ tabBarLabel: 'Start Walk' }}
+        />
+      <Tab.Screen
+        name="Time Challenge"
+        component={ChallengeWalkScreen}
+        options={{ tabBarLabel: 'Time Challenge Walk' }}
       />
       <Tab.Screen
         name="History"
