@@ -8,6 +8,7 @@ import { haversineDistance } from '../utils/distanceUtils';
 import { saveWalk } from '../database/database';
 import * as Haptics from 'expo-haptics';
 
+
 const ChallengeWalkScreen = () => {
   const [location, setLocation] = useState(null);
   const [center, setCenter] = useState(null); // Center point for walk

@@ -8,6 +8,7 @@ import { saveWalk } from '../database/database';
 import { useNavigation } from '@react-navigation/native';
 import { createRandomSpot } from '../utils/createRandomSpot';
 import * as Haptics from 'expo-haptics';
+import TriviaModal from '../components/TriviaModal';
 
 const WalkSetupScreen = () => {
   const [location, setLocation] = useState(null); // User location
@@ -21,6 +22,8 @@ const WalkSetupScreen = () => {
   const [loading, setLoading] = useState(false);
   const [startTime, setStartTime] = useState(null);
   const [timeSpent, setTimeSpent] = useState(0);
+  const [triviaVisible, setTriviaVisible] = useState(false);
+  const [triviaData, setTriviaData] = useState(null);
 
   const navigation = useNavigation();
 
@@ -51,20 +54,25 @@ const WalkSetupScreen = () => {
     })();
   }, []);
 
-  // Check if user is close enough to any spot
-  const checkNearbySpots = (userLocation) => {
-    setSpots((prevSpots) =>
-      prevSpots.map((spot) => {
+  const checkNearbySpots = async (userLocation) => {
+    const updatedSpots = await Promise.all(
+      spots.map(async (spot) => {
         const distance = haversineDistance(userLocation, spot);
-        if (!spot.visited && distance < 0.05) { // Within 5 meters
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // Haptic feedback
+        if (!spot.visited && distance < 0.05) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           setPoints((prev) => prev + 1);
-          return { ...spot, visited: true }; // Mark this spot as visited
+          const trivia = await fetchTriviaQuestion();
+          setTriviaData(trivia);
+          setTriviaVisible(true);
+          return { ...spot, visited: true };
         }
-        return spot; // Leave unchanged if already visited or too far
+        return spot;
       })
     );
+    setSpots(updatedSpots);
   };
+  
+  
 
   // End walk if all spots are visited
   const checkWalkCompletion = () => {
@@ -73,6 +81,7 @@ const WalkSetupScreen = () => {
     }
   };
 
+  // https://theexpertdeveloper.medium.com/how-to-implement-live-location-tracking-in-react-native-725dca135e43
   // Location watch to update users location and check for spots nearby
   useEffect(() => {
     let locationSubscription;
@@ -186,6 +195,58 @@ const WalkSetupScreen = () => {
     );
   };
   
+  const fetchTriviaQuestion = async () => {
+    try {
+      const response = await fetch('https://opentdb.com/api.php?amount=1&type=multiple');
+      const data = await response.json();
+  
+      if (data.response_code === 5) {
+        console.error('API Rate Limited');
+        return null;
+      }
+  
+      if (data && data.results && data.results.length > 0) {
+        const question = data.results[0];
+        const options = [question.correct_answer, ...question.incorrect_answers].sort(() => Math.random() - 0.5);
+        return { ...question, options };
+      } else {
+        console.error('No trivia question data found:', data);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching trivia question:', error);
+      return null;
+    }
+  };
+  
+  
+  const handleAnswerTrivia = (selectedAnswer) => {
+    if (!triviaData) return; // Ensure trivia data is available
+  
+    // Check if the selected answer is correct
+    const isCorrect = selectedAnswer === triviaData.correct_answer;
+  
+    if (isCorrect) {
+      // Award points for the correct answer
+      setPoints(prevPoints => prevPoints + 1);
+      Alert.alert('Correct!', 'You earned 1 point!');
+    } else {
+      // Provide feedback for wrong answer
+      Alert.alert('Incorrect!', 'Better luck next time!');
+    }
+  
+    // Close the trivia modal after answering
+    setTriviaVisible(false);
+  
+    // Update the spot to mark it as visited and move to the next spot
+    setSpots(prevSpots => 
+      prevSpots.map(spot => 
+        spot.id === currentSpotId ? { ...spot, visited: true } : spot
+      )
+    );
+  };
+  
+  
 
   return (
     <View style={styles.container}>
@@ -268,6 +329,12 @@ const WalkSetupScreen = () => {
           </View>
         </>
       )}
+      <TriviaModal
+        visible={triviaVisible}
+        question={triviaData?.question}
+        options={triviaData?.options}
+        onAnswer={handleAnswerTrivia}
+      />
     </View>
   );
 };
