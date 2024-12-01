@@ -7,6 +7,7 @@ import { haversineDistance } from '../utils/distanceUtils';
 import { saveWalk } from '../database/database';
 import { useNavigation } from '@react-navigation/native';
 import { createRandomSpot } from '../utils/createRandomSpot';
+import * as Haptics from 'expo-haptics';
 
 
 const WalkSetupScreen = () => {
@@ -57,6 +58,7 @@ const WalkSetupScreen = () => {
       prevSpots.map((spot) => {
         const distance = haversineDistance(userLocation, spot);
         if (!spot.visited && distance < 0.05) { // Within 5 meters
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // Haptic feedback
           setPoints((prev) => prev + 1);
           return { ...spot, visited: true }; // Mark this spot as visited
         }

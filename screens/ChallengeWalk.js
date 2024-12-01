@@ -6,6 +6,8 @@ import Slider from '@react-native-community/slider';
 import { createRandomSpot } from '../utils/createRandomSpot';
 import { haversineDistance } from '../utils/distanceUtils';
 import { saveWalk } from '../database/database';
+import * as Haptics from 'expo-haptics';
+
 
 const ChallengeWalkScreen = () => {
   const [location, setLocation] = useState(null);
@@ -130,9 +132,10 @@ const ChallengeWalkScreen = () => {
       prevSpots.map((spot) => {
         const distance = haversineDistance(userLocation, spot);
   
-        if (!spot.visited && distance < 0.05) { // 50 meters
-          // Award a point for visiting
-          setPoints((prevPoints) => prevPoints + 1);
+          if (!spot.visited && distance < 0.01) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // Haptic feedback
+              // Award a point for visiting
+              setPoints((prevPoints) => prevPoints + 1);
   
           // Replace the visited spot with a new one
           const newSpot = createRandomSpot(center, radius);
@@ -186,7 +189,6 @@ const ChallengeWalkScreen = () => {
                   key={index}
                   coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
                   title={`Spot ${index + 1}`}
-                  pinColor={spot.visited ? 'green' : 'red'}
                   onPress={() => {
                     Alert.alert(
                       "Replace Spot",
